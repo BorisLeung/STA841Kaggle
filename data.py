@@ -5,6 +5,7 @@ import pandas as pd
 
 DATA_DIR = "data"
 PROCESSED_DIR = "processed"
+PREDICTIONS_DIR = "predictions"
 
 edu_train_data = "module_Education_train_set.csv"
 edu_test_data = "module_Education_test_set.csv"
@@ -29,6 +30,8 @@ combined_train_with_num_pov["num_pov"] = (
 )
 combined_test = pd.read_csv(os.path.join(PROCESSED_DIR, "combined_test.csv"))
 
+
+Y_COLUMNS = [f"subjective_poverty_{i}" for i in range(1, 11)]
 HOUSE_PREFIX = "house_"
 EDU_PREFIX = "edu_"
 
@@ -41,7 +44,11 @@ __all__ = [
     "sample_submission",
     "HOUSE_PREFIX",
     "EDU_PREFIX",
+    "Y_COLUMNS",
     "combined_train",
     "combined_train_with_num_pov",
     "combined_test",
+    "DATA_DIR",
+    "PROCESSED_DIR",
+    "PREDICTIONS_DIR",
 ]
