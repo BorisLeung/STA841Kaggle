@@ -1,7 +1,12 @@
 import os
 
+from matplotlib.pyplot import step
 import numpy as np
 import pandas as pd
+from sklearn.compose import ColumnTransformer, make_column_selector as selector
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, OneHotEncoder
 
 __all__ = [
     "edu_train",
@@ -20,6 +25,8 @@ __all__ = [
     "PROCESSED_DIR",
     "PREDICTIONS_DIR",
     "generate_submission",
+    "column_types_df",
+    "get_preprocessor",
 ]
 
 Y_COLUMNS = [f"subjective_poverty_{i}" for i in range(1, 11)]
@@ -84,3 +91,117 @@ def generate_submission(y_pred: np.ndarray, filename: str) -> None:
         columns=["psu_hh_idcode"] + Y_COLUMNS,
     ).to_csv(os.path.join(PREDICTIONS_DIR, f"{filename}.csv"), index=False)
     print(f"Submission file saved as {filename}.csv")
+
+
+COLUMN_TYPES_MAP_FILE = "column_classes.xlsx"
+column_types_df = pd.read_excel(COLUMN_TYPES_MAP_FILE, sheet_name=1)
+
+
+def get_preprocessor(
+    binary_transformer: Pipeline | None = None,
+    categorical_transformer: Pipeline | None = None,
+    numerical_transformer: Pipeline | None = None,
+    ordinal_transformer: Pipeline | None = None,
+    imputer_strategy: str | list[str | None] | None = "mean",
+    remainder: str = "passthrough",
+) -> ColumnTransformer:
+    """
+    Creates a ColumnTransformer that preprocesses different types of columns using specified transformers. The column types are inferred from the column_types_df DataFrame, which is read from the column_classes.xlsx file.
+
+    Args:
+        binary_transformer (Pipeline | None): Transformer for binary columns. Defaults to OneHotEncoder with drop="first".
+        categorical_transformer (Pipeline | None): Transformer for categorical columns. Defaults to OneHotEncoder with drop="first".
+        numerical_transformer (Pipeline | None): Transformer for numerical columns. Defaults to StandardScaler.
+        ordinal_transformer (Pipeline | None): Transformer for ordinal columns. Defaults to MinMaxScaler.
+        imputer_strategy (str | list[str | None] | None): Strategy for imputing missing values. Defaults to "mean".
+        remainder (str): Strategy for handling remaining columns. Defaults to "passthrough".
+
+    Returns:
+        ColumnTransformer: A ColumnTransformer that applies the specified transformers to the corresponding column types.
+    """
+    if not isinstance(imputer_strategy, list):
+        imputer_strategy = [imputer_strategy] * 4
+
+    if binary_transformer is None:
+        steps = [
+            (
+                "encoder",
+                OneHotEncoder(
+                    sparse_output=False, drop="first"
+                ),  # sparse_output=False for pandas output
+            )
+        ]
+        if imputer_strategy[0] is not None:
+            steps.insert(0, ("imputer", SimpleImputer(strategy=imputer_strategy[0])))
+        binary_transformer = Pipeline(steps=steps)
+    if categorical_transformer is None:
+        steps = [
+            (
+                "encoder",
+                OneHotEncoder(
+                    sparse_output=False,
+                    drop="first",
+                    handle_unknown="infrequent_if_exist",
+                    min_frequency=0.05,
+                ),
+            )
+        ]  # sparse_output=False for pandas output
+
+        if imputer_strategy[1] is not None:
+            steps.insert(0, ("imputer", SimpleImputer(strategy=imputer_strategy[1])))
+        categorical_transformer = Pipeline(steps=steps)
+    if numerical_transformer is None:
+        steps = [("scaler", StandardScaler())]
+        if imputer_strategy[2] is not None:
+            steps.insert(0, ("imputer", SimpleImputer(strategy=imputer_strategy[2])))
+        numerical_transformer = Pipeline(steps=steps)
+    if ordinal_transformer is None:
+        steps = [("scaler", MinMaxScaler())]
+        if imputer_strategy[3] is not None:
+            steps.insert(0, ("imputer", SimpleImputer(strategy=imputer_strategy[3])))
+        ordinal_transformer = Pipeline(steps=steps)
+
+    binary_columns = column_types_df[column_types_df["type"] == "binary"][
+        "column"
+    ].values
+    pseudo_binary_columns = column_types_df[column_types_df["type"] == "pseudo-binary"][
+        "column"
+    ].values
+    categorical_columns = column_types_df[column_types_df["type"] == "categorical"][
+        "column"
+    ].values
+    numerical_columns = column_types_df[column_types_df["type"] == "numerical"][
+        "column"
+    ].values
+    ordinal_columns = column_types_df[column_types_df["type"] == "ordinal"][
+        "column"
+    ].values
+    all_binary_columns = np.append(binary_columns, pseudo_binary_columns)
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            (
+                "binary",
+                binary_transformer,
+                selector(pattern="|".join(all_binary_columns)),
+            ),
+            (
+                "categorical",
+                categorical_transformer,
+                selector(pattern="|".join(categorical_columns)),
+            ),
+            (
+                "numerical",
+                numerical_transformer,
+                selector(pattern="|".join(numerical_columns)),
+            ),
+            (
+                "ordinal",
+                ordinal_transformer,
+                selector(pattern="|".join(ordinal_columns)),
+            ),
+        ],
+        remainder=remainder,
+    )
+    preprocessor.set_output(transform="pandas")
+    return preprocessor
