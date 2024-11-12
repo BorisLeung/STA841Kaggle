@@ -18,3 +18,14 @@ As of the time of creating this file, the python environment is set up as the fo
 
 `python -m pip install -r requirements.txt`
 
+## Optuna Dashboard
+
+Optuna dashboard is a handy library for visualizing the hyperparameter search space. It should have already be installed if one follows the above setup guide.
+
+To launch the dashboard, simply run the following in terminal:
+
+```
+optuna-dashboard sqlite:///<your-local-database>.db
+```
+
+A local server should then be hosted for one to browse.
