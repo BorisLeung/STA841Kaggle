@@ -58,7 +58,24 @@ combined_train_with_num_pov["num_pov"] = (
     )
     + 1
 )
+combined_transformed_train = pd.read_csv(
+    os.path.join(PROCESSED_DIR, "combined_transformed_train.csv")
+)
+combined_transformed_train_with_num_pov = combined_transformed_train.copy()
+combined_transformed_train_with_num_pov["num_pov"] = (
+    np.argmax(
+        combined_transformed_train_with_num_pov.filter(
+            like="subjective_poverty"
+        ).values,
+        axis=1,
+    )
+    + 1
+)
+
 combined_test = pd.read_csv(os.path.join(PROCESSED_DIR, "combined_test.csv"))
+combined_transformed_test = pd.read_csv(
+    os.path.join(PROCESSED_DIR, "combined_transformed_test.csv")
+)
 
 
 def generate_submission(y_pred: np.ndarray, filename: str) -> None:
