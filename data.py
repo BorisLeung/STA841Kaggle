@@ -15,9 +15,10 @@ __all__ = [
     "house_test",
     "pov_train",
     "sample_submission",
+    "Y_COLUMNS",
     "HOUSE_PREFIX",
     "EDU_PREFIX",
-    "Y_COLUMNS",
+    "VALID_NULL",
     "combined_train",
     "combined_train_with_num_pov",
     "combined_transformed_train",
@@ -30,11 +31,16 @@ __all__ = [
     "generate_submission",
     "column_types_df",
     "get_preprocessor",
+    "remove_boring_columns",
+    "remove_all_valid_null_columns",
+    "get_divided_edu",
+    "get_divided_house",
 ]
 
 Y_COLUMNS = [f"subjective_poverty_{i}" for i in range(1, 11)]
 HOUSE_PREFIX = "house_"
 EDU_PREFIX = "edu_"
+VALID_NULL = -999
 
 DATA_DIR = "data"
 PROCESSED_DIR = "processed"
@@ -225,3 +231,79 @@ def get_preprocessor(
     )
     preprocessor.set_output(transform="pandas")
     return preprocessor
+
+
+def remove_boring_columns(df: pd.DataFrame):
+    boring_columns = ["edu_q16", "house_q08", "house_q10", "house_q12", "house_q18"]
+    return df.drop(columns=boring_columns)
+
+
+def remove_all_valid_null_columns(df: pd.DataFrame):
+    """
+    Remove columns from a DataFrame where all values are a specific valid null value.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+    pd.DataFrame: A DataFrame with columns removed where all values are the valid null value.
+    """
+
+    columns = df.columns[(df == VALID_NULL).sum(axis=0) == df.shape[0]]
+    return df.drop(columns=columns)
+
+
+def get_divided_edu(data: pd.DataFrame) -> list[pd.DataFrame]:
+    """
+    Divides the input DataFrame into three categories based on education-related columns and returns a list of DataFrames.
+
+    Parameters:
+    data (pd.DataFrame): The input DataFrame containing education-related columns 'edu_q03' and 'edu_q14'.
+
+    Returns:
+    list[pd.DataFrame]: A list of three DataFrames:
+        - The first DataFrame contains rows where 'edu_q03' equals 2 (never attended school).
+        - The second DataFrame contains rows where 'edu_q03' does not equal 2 and 'edu_q14' equals 2 (attended school but not enrolled in the past year).
+        - The third DataFrame contains rows where 'edu_q03' does not equal 2 and 'edu_q14' equals 1 (attended school and attended in the past year).
+    """
+    never_attended_school_mask = data["edu_q03"] == 2  # count: 139
+    attended_school_but_not_enrolled_in_past_year = (~never_attended_school_mask) & (
+        data["edu_q14"] == 2
+    )  # count: 5138, including 5134 over 19 years of age and 4 under
+    attended_school_and_attended_in_past_year = (~never_attended_school_mask) & (
+        data["edu_q14"] == 1
+    )  # count: 57
+
+    return [
+        remove_all_valid_null_columns(filtered_data)
+        for filtered_data in [
+            data[never_attended_school_mask],
+            data[attended_school_but_not_enrolled_in_past_year],
+            data[attended_school_and_attended_in_past_year],
+        ]
+    ]
+
+
+def get_divided_house(data: pd.DataFrame) -> list[pd.DataFrame]:
+    """
+    Splits the input DataFrame into two DataFrames based on whether the father is living in the house or not,
+    and removes all columns with only null values from each resulting DataFrame.
+
+    Args:
+        data (pd.DataFrame): The input DataFrame containing household data.
+
+    Returns:
+        list[pd.DataFrame]: A list containing two DataFrames:
+            - The first DataFrame contains rows where the father is not living in the house.
+            - The second DataFrame contains rows where the father is living in the house.
+    """
+    father_not_living_here = data["house_q17"] == 2  # count: 5119
+    father_living_here = ~father_not_living_here  # count: 215
+
+    return [
+        remove_all_valid_null_columns(filtered_data)
+        for filtered_data in [
+            data[father_not_living_here],
+            data[father_living_here],
+        ]
+    ]
