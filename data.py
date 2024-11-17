@@ -19,6 +19,7 @@ __all__ = [
     "HOUSE_PREFIX",
     "EDU_PREFIX",
     "VALID_NULL",
+    "combined_house_edu",
     "combined_train",
     "combined_train_with_num_pov",
     "combined_transformed_train",
@@ -30,6 +31,12 @@ __all__ = [
     "PREDICTIONS_DIR",
     "generate_submission",
     "column_types_df",
+    "transform_status",
+    "transform_mother_age",
+    "transform_father_age",
+    "copy_mother_info",
+    "copy_father_info",
+    "transform_all_house",
     "get_preprocessor",
     "remove_boring_columns",
     "remove_all_valid_null_columns",
@@ -59,6 +66,7 @@ house_train = pd.read_csv(os.path.join(DATA_DIR, house_train_data))
 house_test = pd.read_csv(os.path.join(DATA_DIR, house_test_data))
 pov_train = pd.read_csv(os.path.join(DATA_DIR, pov_train_data))
 sample_submission = pd.read_csv(os.path.join(DATA_DIR, sample_submission_data))
+combined_house_edu = pd.read_csv(os.path.join(PROCESSED_DIR, "combined_house_edu.csv"))
 combined_train = pd.read_csv(os.path.join(PROCESSED_DIR, "combined_train.csv"))
 combined_train_with_num_pov = combined_train.copy()
 combined_train_with_num_pov["num_pov"] = (
@@ -119,6 +127,123 @@ def generate_submission(y_pred: np.ndarray, filename: str) -> None:
     print(f"Submission file saved as {filename}.csv")
 
 
+### ============================= ###
+### Data Transformation Functions ###
+### ============================= ###
+
+
+def transform_status(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    young_mask = df["house_q05y"] < 12
+    df.loc[young_mask, "house_q06"] = 5
+    df.loc[young_mask, "house_q07"] = 2
+
+    single_mask = (df["house_q06"] == 4) | (df["house_q06"] == 5)
+    df.loc[single_mask, "house_q07"] = 2
+    if "house_q08" in df.columns:
+        df = df.drop(columns=["house_q08"])
+    return df
+
+
+def transform_mother_age(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["house_q15"] = df["house_q15"].replace(VALID_NULL, 0)
+    df["house_q15"] = df["house_q15"].replace(np.nan, 0)
+    df["house_q16"] = df["house_q16"].replace(VALID_NULL, 0)
+    df["house_q16"] = df["house_q16"].replace(np.nan, 0)
+    df["house_q15"] = df["house_q15"].astype(int) + df["house_q16"].astype(int)
+    df = df.drop(columns=["house_q16"])
+    df["house_q15"] = df["house_q15"].replace(0, np.nan)
+    return df
+
+
+def transform_father_age(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["house_q21"] = df["house_q21"].replace(VALID_NULL, 0)
+    df["house_q21"] = df["house_q21"].replace(np.nan, 0)
+    df["house_q22"] = df["house_q22"].replace(VALID_NULL, 0)
+    df["house_q22"] = df["house_q22"].replace(np.nan, 0)
+    df["house_q21"] = df["house_q21"].astype(int) + df["house_q22"].astype(int)
+    df = df.drop(columns=["house_q22"])
+    df["house_q21"] = df["house_q21"].replace(0, np.nan)
+    return df
+
+
+def copy_mother_info(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    mothers_in_house_mask = df["house_q11"] == 1
+    mothers_id = (
+        df[mothers_in_house_mask]["psu_hh_idcode"].str.split("_").str[:-1].agg("_".join)
+        + "_"
+        + df[mothers_in_house_mask]["house_q12"].astype(int).astype(str)
+    )
+    df.loc[mothers_in_house_mask, "mother_id"] = mothers_id
+
+    edu_train_copy = combined_house_edu.copy()
+    mothers_rows = edu_train_copy[edu_train_copy["psu_hh_idcode"].isin(mothers_id)]
+
+    for index, row in df[mothers_in_house_mask].iterrows():
+        mother_id = row["mother_id"]
+        mother_row = mothers_rows[mothers_rows["psu_hh_idcode"] == mother_id]
+        df.loc[index, "house_q13"] = (
+            mother_row["edu_q04"].values[0] if not mother_row.empty else 1
+        )
+        df.loc[index, "house_q14"] = 1
+        if mother_row.empty:
+            continue
+        df.loc[index, "house_q16"] = mother_row["house_q05y"].values[0]
+
+    df.reset_index()
+    df.drop(columns=["mother_id", "house_q12"], inplace=True)
+    return df
+
+
+def copy_father_info(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    fathers_in_house_mask = df["house_q17"] == 1
+    fathers_id = (
+        df[fathers_in_house_mask]["psu_hh_idcode"].str.split("_").str[:-1].agg("_".join)
+        + "_"
+        + df[fathers_in_house_mask]["house_q18"].astype(int).astype(str)
+    )
+    df.loc[fathers_in_house_mask, "father_id"] = fathers_id
+
+    edu_train_copy = combined_house_edu.copy()
+    fathers_rows = edu_train_copy[edu_train_copy["psu_hh_idcode"].isin(fathers_id)]
+
+    for index, row in df[fathers_in_house_mask].iterrows():
+        father_id = row["father_id"]
+        father_row = fathers_rows[fathers_rows["psu_hh_idcode"] == father_id]
+        df.loc[index, "house_q19"] = (
+            father_row["edu_q04"].values[0] if not father_row.empty else 1
+        )
+        df.loc[index, "house_q20"] = 1
+        if father_row.empty:
+            continue
+        df.loc[index, "house_q22"] = father_row["house_q05y"].values[0]
+
+    df.reset_index()
+    df.drop(columns=["father_id", "house_q18"], inplace=True)
+    return df
+
+
+def transform_all_house(df: pd.DataFrame) -> pd.DataFrame:
+    calls = [
+        transform_status,
+        copy_father_info,
+        copy_mother_info,
+        transform_father_age,
+        transform_mother_age,
+    ]
+    for call in calls:
+        df = call(df)
+    return df
+
+
+### ======================= ###
+### Preprocessing Functions ###
+### ======================= ###
+
 COLUMN_TYPES_MAP_FILE = "column_classes.xlsx"
 column_types_df = pd.read_excel(COLUMN_TYPES_MAP_FILE, sheet_name=1)
 
@@ -153,7 +278,9 @@ def get_preprocessor(
             (
                 "encoder",
                 OneHotEncoder(
-                    sparse_output=False, drop="first"
+                    sparse_output=False,
+                    drop="first",
+                    handle_unknown="infrequent_if_exist",
                 ),  # sparse_output=False for pandas output
             )
         ]
@@ -234,7 +361,8 @@ def get_preprocessor(
 
 
 def remove_boring_columns(df: pd.DataFrame):
-    boring_columns = ["edu_q16", "house_q08", "house_q10", "house_q12", "house_q18"]
+    # boring_columns = ["edu_q16", "house_q08", "house_q10", "house_q12", "house_q18"]
+    boring_columns = ["edu_q16", "house_q08", "house_q10"]
     return df.drop(columns=boring_columns)
 
 
@@ -251,6 +379,11 @@ def remove_all_valid_null_columns(df: pd.DataFrame):
 
     columns = df.columns[(df == VALID_NULL).sum(axis=0) == df.shape[0]]
     return df.drop(columns=columns)
+
+
+### ======================== ###
+### Data Splitting Functions ###
+### ======================== ###
 
 
 def get_divided_edu(data: pd.DataFrame) -> list[pd.DataFrame]:
