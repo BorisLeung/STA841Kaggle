@@ -1,6 +1,9 @@
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 import optuna
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC, SVC
 from sklearn.calibration import CalibratedClassifierCV
 from xgboost import XGBClassifier
@@ -53,7 +56,7 @@ def suggest_kernel_svc(
 ) -> SVC:
     C = trial.suggest_float("C", 1e-5, 1e5, log=True)
     kernel = trial.suggest_categorical("kernel", ["linear", "poly", "rbf", "sigmoid"])
-    degree = trial.suggest_int("degree", 2, 5) if kernel == "poly" else None
+    degree = trial.suggest_int("degree", 1, 5) if kernel == "poly" else 0
     gamma = (
         trial.suggest_categorical("gamma", ["scale", "auto"])
         if kernel != "linear"
@@ -72,9 +75,35 @@ def suggest_kernel_svc(
     )
 
 
+def suggest_naive_bayes(trial: optuna.Trial, seed: int = SEED) -> GaussianNB:
+    return GaussianNB()
+
+
+def suggest_knn_classifier(
+    trial: optuna.Trial, seed: int = SEED
+) -> KNeighborsClassifier:
+    return KNeighborsClassifier(
+        n_neighbors=trial.suggest_int("n_neighbors", 2, 10),
+        weights=trial.suggest_categorical("weights", ["uniform", "distance"]),
+        algorithm=trial.suggest_categorical(
+            "algorithm", ["auto", "ball_tree", "kd_tree", "brute"]
+        ),
+        leaf_size=trial.suggest_int("leaf_size", 10, 50),
+        p=trial.suggest_int("p", 1, 2),
+    )
+
+
 def suggest_random_forest(
     trial: optuna.Trial, seed: int = SEED
 ) -> RandomForestClassifier:
+    # model = RandomForestClassifier(
+    #     max_depth=trial.suggest_int("max_depth", 3, 15),
+    #     n_estimators=trial.suggest_int("n_estimators", 100, 1000),
+    #     min_samples_split=trial.suggest_int("min_samples_split", 2, 10),
+    #     min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 10),
+    #     random_state=seed,
+    # )
+    # return model
     return RandomForestClassifier(
         n_estimators=trial.suggest_int("n_estimators", 100, 1000),
         criterion=trial.suggest_categorical(
@@ -88,7 +117,7 @@ def suggest_random_forest(
     )
 
 
-def suggest_gradeint_boosting(
+def suggest_gradient_boosting(
     trial: optuna.Trial, seed: int = SEED
 ) -> GradientBoostingClassifier:
     return GradientBoostingClassifier(
@@ -103,6 +132,25 @@ def suggest_gradeint_boosting(
         min_samples_split=trial.suggest_int("min_samples_split", 2, 10),
         min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 10),
         random_state=seed,
+    )
+
+
+def suggest_mlp_classifier(trial: optuna.Trial, seed: int = SEED) -> MLPClassifier:
+    return MLPClassifier(
+        hidden_layer_sizes=trial.suggest_categorical(
+            "hidden_layer_sizes", [(256,), (256, 256), (256, 256, 256)]
+        ),
+        activation=trial.suggest_categorical(
+            "activation", ["identity", "logistic", "tanh", "relu"]
+        ),
+        solver="adam",
+        alpha=trial.suggest_float("alpha", 1e-5, 1e-2, log=True),
+        learning_rate=trial.suggest_categorical(
+            "learning_rate", ["constant", "invscaling", "adaptive"]
+        ),
+        max_iter=MAX_ITER,
+        random_state=seed,
+        early_stopping=True,
     )
 
 
