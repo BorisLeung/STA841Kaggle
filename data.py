@@ -147,6 +147,16 @@ def transform_status(df: pd.DataFrame) -> pd.DataFrame:
 
 def transform_mother_age(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+
+    # slightly worse
+    df["house_q15"] = pd.cut(
+        df["house_q15"], bins=[-1000, 0, 40, 50, 60, 70, 80, 90], labels=list(range(7))
+    )
+    df["house_q16"] = pd.cut(
+        df["house_q16"], bins=[-1000, 0, 40, 50, 60, 70, 80, 90], labels=list(range(7))
+    )
+
+    # much worse
     # df["house_q15"] = df["house_q15"].replace(VALID_NULL, 0)
     # df["house_q15"] = df["house_q15"].replace(np.nan, 0)
     # df["house_q16"] = df["house_q16"].replace(VALID_NULL, 0)
@@ -160,6 +170,15 @@ def transform_mother_age(df: pd.DataFrame) -> pd.DataFrame:
 
 def transform_father_age(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    # slightly worse
+    df["house_q21"] = pd.cut(
+        df["house_q21"], bins=[-1000, 0, 40, 50, 60, 70, 80, 90], labels=list(range(7))
+    )
+    df["house_q22"] = pd.cut(
+        df["house_q22"], bins=[-1000, 0, 40, 50, 60, 70, 80, 90], labels=list(range(7))
+    )
+
+    # much worse
     # df["house_q21"] = df["house_q21"].replace(VALID_NULL, 0)
     # df["house_q21"] = df["house_q21"].replace(np.nan, 0)
     # df["house_q22"] = df["house_q22"].replace(VALID_NULL, 0)
@@ -497,12 +516,15 @@ def get_divided_edu(data: pd.DataFrame) -> list[pd.DataFrame]:
     )  # count: 57
 
     return [
-        remove_all_valid_null_columns(filtered_data)
-        for filtered_data in [
-            data[never_attended_school_mask],
-            data[attended_school_but_not_enrolled_in_past_year],
-            data[attended_school_and_attended_in_past_year],
-        ]
+        remove_all_valid_null_columns(data[never_attended_school_mask]).drop(
+            columns=["edu_q03"]
+        ),
+        remove_all_valid_null_columns(
+            data[attended_school_but_not_enrolled_in_past_year]
+        ).drop(columns=["edu_q03", "edu_q14"]),
+        remove_all_valid_null_columns(
+            data[attended_school_and_attended_in_past_year]
+        ).drop(columns=["edu_q03", "edu_q14"]),
     ]
 
 
