@@ -135,11 +135,11 @@ def generate_submission(y_pred: np.ndarray, filename: str) -> None:
 def transform_status(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     young_mask = df["house_q05y"] < 12
-    df.loc[young_mask, "house_q06"] = 5
-    df.loc[young_mask, "house_q07"] = 2
+    df.loc[young_mask, "house_q06"] = -1
+    df.loc[young_mask, "house_q07"] = -1
 
     single_mask = (df["house_q06"] == 4) | (df["house_q06"] == 5)
-    df.loc[single_mask, "house_q07"] = 2
+    df.loc[single_mask, "house_q07"] = -1
     if "house_q08" in df.columns:
         df = df.drop(columns=["house_q08"])
     return df
@@ -147,26 +147,82 @@ def transform_status(df: pd.DataFrame) -> pd.DataFrame:
 
 def transform_mother_age(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["house_q15"] = df["house_q15"].replace(VALID_NULL, 0)
-    df["house_q15"] = df["house_q15"].replace(np.nan, 0)
-    df["house_q16"] = df["house_q16"].replace(VALID_NULL, 0)
-    df["house_q16"] = df["house_q16"].replace(np.nan, 0)
-    df["house_q15"] = df["house_q15"].astype(int) + df["house_q16"].astype(int)
-    df = df.drop(columns=["house_q16"])
-    df["house_q15"] = df["house_q15"].replace(0, np.nan)
+    # df["house_q15"] = df["house_q15"].replace(VALID_NULL, 0)
+    # df["house_q15"] = df["house_q15"].replace(np.nan, 0)
+    # df["house_q16"] = df["house_q16"].replace(VALID_NULL, 0)
+    # df["house_q16"] = df["house_q16"].replace(np.nan, 0)
+    # df["house_q15"] = df["house_q15"].astype(int) - df["house_q16"].astype(int)
+    # df = df.drop(columns=["house_q16"])
+    # df["house_q15"] = df["house_q15"].replace(0, np.nan)
+    df = df.drop(columns=["house_q14"])
     return df
 
 
 def transform_father_age(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["house_q21"] = df["house_q21"].replace(VALID_NULL, 0)
-    df["house_q21"] = df["house_q21"].replace(np.nan, 0)
-    df["house_q22"] = df["house_q22"].replace(VALID_NULL, 0)
-    df["house_q22"] = df["house_q22"].replace(np.nan, 0)
-    df["house_q21"] = df["house_q21"].astype(int) + df["house_q22"].astype(int)
-    df = df.drop(columns=["house_q22"])
-    df["house_q21"] = df["house_q21"].replace(0, np.nan)
+    # df["house_q21"] = df["house_q21"].replace(VALID_NULL, 0)
+    # df["house_q21"] = df["house_q21"].replace(np.nan, 0)
+    # df["house_q22"] = df["house_q22"].replace(VALID_NULL, 0)
+    # df["house_q22"] = df["house_q22"].replace(np.nan, 0)
+    # df["house_q21"] = df["house_q21"].astype(int) - df["house_q22"].astype(int)
+    # df = df.drop(columns=["house_q22"])
+    # df["house_q21"] = df["house_q21"].replace(0, np.nan)
+    df = df.drop(columns=["house_q20"])
     return df
+
+
+def map_education_level(edu_level: int) -> int:
+    """
+    ## HOUSE
+
+    NONE, OR SOME PRIMARY 1
+
+    COMPLETED PRIMARY 4/5 YEARS 2
+    COMPLETED PRIMARY 7/8/9 YEARS 3
+
+    SOME SECONDARY GENERAL 4
+    COMPLETED SECONDARY 5
+
+    SOME VOCATIONAL SCHOOL 6
+    COMPLETED VICATIONAL SCHOOL 7
+
+    SOME UNIVERSITY 8
+    COMPLETED UNIVERSITY DEGREE 9
+
+    POSTUNIVERSITY 10
+
+    ## EDU
+
+    NONE 0
+
+    "8 OR 9 YEARS" SCHOOL 1
+
+    GYMNAZIUM(SECONDARY GENERAL) 2
+
+    TECHICUM <2 YEARS 3
+    VOCATIONAL 2-3 YEARS 4
+    VOCATIONAL 4/5 YEARS 5
+
+    UNIVERSITY- ALBANIA 6
+    UNIVERSITY- ABROAD 7
+
+    MASTER- ALBANIA 8
+    MASTER- ABROAD 9
+    DOCTORATE/PhD-ALBANIA 10
+    DOCTORATE/PhD-ABROAD 11
+    """
+    if edu_level >= 8:
+        return 10
+    elif edu_level >= 6:
+        return 8
+    elif edu_level >= 3:
+        return 6
+    elif edu_level >= 2:
+        return 4
+    elif edu_level >= 1:
+        return 3
+    else:
+        return 1
 
 
 def copy_mother_info(df: pd.DataFrame) -> pd.DataFrame:
@@ -186,7 +242,9 @@ def copy_mother_info(df: pd.DataFrame) -> pd.DataFrame:
         mother_id = row["mother_id"]
         mother_row = mothers_rows[mothers_rows["psu_hh_idcode"] == mother_id]
         df.loc[index, "house_q13"] = (
-            mother_row["edu_q04"].values[0] if not mother_row.empty else 1
+            map_education_level(mother_row["edu_q04"].values[0])
+            if not mother_row.empty
+            else 1
         )
         df.loc[index, "house_q14"] = 1
         if mother_row.empty:
@@ -215,7 +273,9 @@ def copy_father_info(df: pd.DataFrame) -> pd.DataFrame:
         father_id = row["father_id"]
         father_row = fathers_rows[fathers_rows["psu_hh_idcode"] == father_id]
         df.loc[index, "house_q19"] = (
-            father_row["edu_q04"].values[0] if not father_row.empty else 1
+            map_education_level(father_row["edu_q04"].values[0])
+            if not father_row.empty
+            else 1
         )
         df.loc[index, "house_q20"] = 1
         if father_row.empty:
@@ -227,14 +287,40 @@ def copy_father_info(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def transform_all_house(df: pd.DataFrame) -> pd.DataFrame:
-    calls = [
-        transform_status,
-        copy_father_info,
-        copy_mother_info,
-        transform_father_age,
-        transform_mother_age,
-    ]
+def bin_education_levels(df: pd.DataFrame) -> pd.DataFrame:
+    def bin_edu(x):
+        if x < 2:
+            return 0
+        elif x <= 3:
+            return 1
+        elif x <= 5:
+            return 2
+        elif x <= 7:
+            return 3
+        elif x <= 9:
+            return 4
+        return 5
+
+    df = df.copy()
+    if "house_q13" in df.columns:
+        df["house_q13"] = df["house_q13"].apply(bin_edu)
+    if "house_q19" in df.columns:
+        df["house_q17"] = df["house_q17"].apply(bin_edu)
+    return df
+
+
+def transform_all_house(
+    df: pd.DataFrame, calls: list[callable] | None = None
+) -> pd.DataFrame:
+    if not calls:
+        calls = [
+            transform_status,
+            copy_father_info,
+            copy_mother_info,
+            bin_education_levels,  # ???
+            transform_father_age,
+            transform_mother_age,
+        ]
     for call in calls:
         df = call(df)
     return df
@@ -304,7 +390,7 @@ def get_preprocessor(
             steps.insert(0, ("imputer", SimpleImputer(strategy=imputer_strategy[1])))
         categorical_transformer = Pipeline(steps=steps)
     if numerical_transformer is None:
-        steps = [("scaler", StandardScaler())]
+        steps = [("scaler", MinMaxScaler())]
         if imputer_strategy[2] is not None:
             steps.insert(0, ("imputer", SimpleImputer(strategy=imputer_strategy[2])))
         numerical_transformer = Pipeline(steps=steps)
@@ -362,8 +448,11 @@ def get_preprocessor(
 
 def remove_boring_columns(df: pd.DataFrame):
     # boring_columns = ["edu_q16", "house_q08", "house_q10", "house_q12", "house_q18"]
-    boring_columns = ["edu_q16", "house_q08", "house_q10"]
-    return df.drop(columns=boring_columns)
+    boring_columns = ["edu_q16", "house_q04", "house_q08", "house_q10"]
+    for column in boring_columns:
+        if column in df.columns:
+            df.drop(columns=column, inplace=True)
+    return df
 
 
 def remove_all_valid_null_columns(df: pd.DataFrame):
