@@ -467,7 +467,7 @@ def get_preprocessor(
 
 def remove_boring_columns(df: pd.DataFrame):
     # boring_columns = ["edu_q16", "house_q08", "house_q10", "house_q12", "house_q18"]
-    boring_columns = ["edu_q16", "house_q04", "house_q08", "house_q10"]
+    boring_columns = ["edu_q16", "house_q04", "house_q05m", "house_q08", "house_q10"]
     for column in boring_columns:
         if column in df.columns:
             df.drop(columns=column, inplace=True)
