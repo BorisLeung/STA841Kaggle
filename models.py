@@ -138,7 +138,22 @@ def suggest_gradient_boosting(
 def suggest_mlp_classifier(trial: optuna.Trial, seed: int = SEED) -> MLPClassifier:
     return MLPClassifier(
         hidden_layer_sizes=trial.suggest_categorical(
-            "hidden_layer_sizes", [(256,), (256, 256), (256, 256, 256)]
+            "hidden_layer_sizes",
+            [
+                (256,),
+                (256, 256),
+                (256, 256, 256),
+                (256, 256, 256, 256),
+                (512, 512),
+                (512, 512, 512),
+                (512, 512, 512, 512),
+                (1024, 1024),
+                (1024, 1024, 1024),
+                (1024, 1024, 1024, 1024),
+                (2048, 2048),
+                (2048, 2048, 2048),
+                (2048, 2048, 2048, 2048),
+            ],
         ),
         activation=trial.suggest_categorical(
             "activation", ["identity", "logistic", "tanh", "relu"]
