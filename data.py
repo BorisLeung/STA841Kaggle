@@ -37,6 +37,7 @@ __all__ = [
     "copy_mother_info",
     "copy_father_info",
     "transform_all_house",
+    "transform_education_levels",
     "get_preprocessor",
     "remove_boring_columns",
     "remove_all_valid_null_columns",
@@ -323,7 +324,7 @@ def bin_education_levels(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "house_q13" in df.columns:
         df["house_q13"] = df["house_q13"].apply(bin_edu)
-    if "house_q19" in df.columns:
+    if "house_q17" in df.columns:
         df["house_q17"] = df["house_q17"].apply(bin_edu)
     return df
 
@@ -342,6 +343,34 @@ def transform_all_house(
         ]
     for call in calls:
         df = call(df)
+    return df
+
+
+def transform_education_levels(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    def combine(grade: int, level: int) -> int:
+        level -= 1
+        match grade:
+            case 1:
+                return level / (9 - 1)
+            case 2:
+                return level / (4 - 1)
+            case 3:
+                return level / (2 - 1)
+            case 4:
+                return level / (3 - 1)
+            case 5:
+                return level / (5 - 1)
+            case 6 | 7:
+                return level / (6 - 1)
+            case _:
+                return level / (5 - 1)
+
+    if "edu_q04" in df.columns and "edu_q05" in df.columns:
+        df["edu_q05"] = df[["edu_q04", "edu_q05"]].apply(
+            lambda row: combine(row["edu_q04"], row["edu_q05"]), axis=1
+        )
     return df
 
 
