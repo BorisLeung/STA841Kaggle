@@ -37,6 +37,7 @@ __all__ = [
     "copy_mother_info",
     "copy_father_info",
     "transform_all_house",
+    "transform_education_levels",
     "get_preprocessor",
     "remove_boring_columns",
     "remove_all_valid_null_columns",
@@ -323,7 +324,7 @@ def bin_education_levels(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "house_q13" in df.columns:
         df["house_q13"] = df["house_q13"].apply(bin_edu)
-    if "house_q19" in df.columns:
+    if "house_q17" in df.columns:
         df["house_q17"] = df["house_q17"].apply(bin_edu)
     return df
 
@@ -342,6 +343,72 @@ def transform_all_house(
         ]
     for call in calls:
         df = call(df)
+    return df
+
+
+def transform_education_levels(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    def transform_q5(grade: int, level: int) -> int:
+        match grade:
+            case 1:
+                return level / 9
+            case 2:
+                return level / 4
+            case 3:
+                return level / 2
+            case 4:
+                return level / 3
+            case 5:
+                return level / 5
+            case 6 | 7:
+                return level / 6
+            case range(8, 12):
+                return level / 5
+            case _:
+                return level
+
+    if "edu_q04" in df.columns and "edu_q05" in df.columns:
+        df["edu_q05"] = df[["edu_q04", "edu_q05"]].apply(
+            lambda row: transform_q5(row["edu_q04"], row["edu_q05"]), axis=1
+        )
+
+    def transform_q13(grade: int, level: int) -> int:
+        match grade:
+            case 1:
+                return level / 9
+            case 2:
+                return level / 2
+            case 3:
+                return level / 4
+            case 4:
+                return level / 3
+            case 5:
+                return level / 5
+            case 6:
+                return level / 3
+            case 7:
+                return level / 2
+            case 8:
+                return level / 6
+            case 9:
+                return level / 5
+            case 10:
+                return level / 5
+            case _:
+                return level
+
+    if "edu_q12" in df.columns and "edu_q13" in df.columns:
+        df["edu_q13"] = df[["edu_q12", "edu_q13"]].apply(
+            lambda row: transform_q13(row["edu_q12"], row["edu_q13"]), axis=1
+        )
+
+    transform_q22 = transform_q13
+    if "edu_q21" in df.columns and "edu_q22" in df.columns:
+        df["edu_q22"] = df[["edu_q21", "edu_q22"]].apply(
+            lambda row: transform_q22(row["edu_q21"], row["edu_q22"]), axis=1
+        )
+
     return df
 
 
