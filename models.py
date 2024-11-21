@@ -45,10 +45,8 @@ def suggest_linear_svc(
     calibration_method = trial.suggest_categorical(
         "calibration_method", ["sigmoid", "isotonic"]
     )
-    calibrated_model = CalibratedClassifierCV(
-        model, cv="prefit", method=calibration_method
-    )
-    return [model, calibrated_model]
+    calibrated_model = CalibratedClassifierCV(model, method=calibration_method)
+    return calibrated_model
 
 
 def suggest_kernel_svc(
@@ -75,12 +73,12 @@ def suggest_kernel_svc(
     )
 
 
-def suggest_naive_bayes(trial: optuna.Trial, seed: int = SEED) -> GaussianNB:
+def suggest_naive_bayes(trial: optuna.Trial, seed: int = SEED, **kwargs) -> GaussianNB:
     return GaussianNB()
 
 
 def suggest_knn_classifier(
-    trial: optuna.Trial, seed: int = SEED
+    trial: optuna.Trial, seed: int = SEED, **kwargs
 ) -> KNeighborsClassifier:
     return KNeighborsClassifier(
         n_neighbors=trial.suggest_int("n_neighbors", 2, 10),
@@ -94,7 +92,7 @@ def suggest_knn_classifier(
 
 
 def suggest_random_forest(
-    trial: optuna.Trial, seed: int = SEED
+    trial: optuna.Trial, seed: int = SEED, **kwargs
 ) -> RandomForestClassifier:
     # model = RandomForestClassifier(
     #     max_depth=trial.suggest_int("max_depth", 3, 15),
