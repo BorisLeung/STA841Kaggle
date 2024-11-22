@@ -201,7 +201,9 @@ def suggest_gradient_boosting(
     )
 
 
-def suggest_mlp_classifier(trial: optuna.Trial, seed: int = SEED) -> MLPClassifier:
+def suggest_mlp_classifier(
+    trial: optuna.Trial, seed: int = SEED, **kwargs
+) -> MLPClassifier:
     return MLPClassifier(
         hidden_layer_sizes=trial.suggest_categorical(
             "hidden_layer_sizes",
@@ -236,7 +238,7 @@ def suggest_mlp_classifier(trial: optuna.Trial, seed: int = SEED) -> MLPClassifi
 
 
 def suggest_xgboost(
-    trial: optuna.Trial, device: str = "cpu", seed: int = SEED
+    trial: optuna.Trial, device: str = "cpu", seed: int = SEED, **kwargs
 ) -> XGBClassifier:
     return XGBClassifier(
         max_depth=trial.suggest_int("max_depth", 3, 10),
@@ -248,7 +250,7 @@ def suggest_xgboost(
     )
 
 
-def suggest_lightgbm(trial: optuna.Trial, seed: int = SEED) -> LGBMClassifier:
+def suggest_lightgbm(trial: optuna.Trial, seed: int = SEED, **kwargs) -> LGBMClassifier:
     return LGBMClassifier(
         max_depth=trial.suggest_int("max_depth", -1, 10),
         learning_rate=trial.suggest_float("learning_rate", 1e-4, 1, log=True),
@@ -260,7 +262,9 @@ def suggest_lightgbm(trial: optuna.Trial, seed: int = SEED) -> LGBMClassifier:
     )
 
 
-def suggest_catboost(trial: optuna.Trial, seed: int = SEED) -> CatBoostClassifier:
+def suggest_catboost(
+    trial: optuna.Trial, seed: int = SEED, **kwargs
+) -> CatBoostClassifier:
     return CatBoostClassifier(
         depth=trial.suggest_int("depth", 3, 10),
         learning_rate=trial.suggest_float("learning_rate", 1e-4, 1, log=True),
